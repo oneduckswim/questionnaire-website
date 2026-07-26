@@ -1,6 +1,5 @@
 # Questionnaire Website
-
-Online 2 × 2 between-subjects experiment for the thesis study on consumer
+Online 2 x 2 between-subjects experiment for the thesis study on consumer
 responses to AI-assisted product descriptions.
 
 ## Conditions
