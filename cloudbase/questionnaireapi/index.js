@@ -97,16 +97,35 @@ async function findResponse(id) {
 }
 
 async function chooseCondition(pilot, forcedCondition) {
-  if (pilot && CONDITIONS.includes(forcedCondition)) return forcedCondition;
-  const counts = await Promise.all(
+  if (pilot && CONDITIONS.includes(forcedCondition)) {
+    return {
+      condition: forcedCondition,
+      method: "forced-pilot",
+      counts: null,
+    };
+  }
+
+  const allocationCounts = await Promise.all(
     CONDITIONS.map(async (condition) => {
       const result = await responses.where({ pilot: pilot ? 1 : 0, condition }).count();
       return { condition, count: Number(result.total) || 0 };
     })
   );
-  const minimum = Math.min(...counts.map((item) => item.count));
-  const candidates = counts.filter((item) => item.count === minimum);
-  return candidates[Math.floor(Math.random() * candidates.length)].condition;
+
+  // Strongly keep the four groups near 25%: allocate to a currently
+  // least-filled group, then randomly break ties so the next condition
+  // cannot be predicted from a fixed A-B-C-D sequence.
+  const minimum = Math.min(...allocationCounts.map((item) => item.count));
+  const candidates = allocationCounts.filter((item) => item.count === minimum);
+  const selected = candidates[crypto.randomInt(candidates.length)];
+
+  return {
+    condition: selected.condition,
+    method: "least-filled-random-tie",
+    counts: Object.fromEntries(
+      allocationCounts.map((item) => [item.condition, item.count])
+    ),
+  };
 }
 
 async function createSession(req, res) {
@@ -115,10 +134,10 @@ async function createSession(req, res) {
   if (existing) return send(res, 200, existing);
 
   const pilot = Boolean(body.pilot);
-  const condition = await chooseCondition(pilot, body.forcedCondition);
+  const allocation = await chooseCondition(pilot, body.forcedCondition);
+  const condition = allocation.condition;
   const id = crypto.randomUUID();
   const record = {
-    _id: id,
     id,
     condition,
     product: condition.startsWith("laptop") ? "laptop" : "beverage",
@@ -131,6 +150,8 @@ async function createSession(req, res) {
     attention_passed: null,
     manipulation_passed: null,
     invalid_reason: null,
+    allocation_method: allocation.method,
+    allocation_counts: allocation.counts,
     answers: {},
   };
   await responses.doc(id).set(record);
