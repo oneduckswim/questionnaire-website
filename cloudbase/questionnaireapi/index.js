@@ -30,7 +30,8 @@ async function readJson(req) {
 async function findResponse(id) {
   if (!id || typeof id !== "string" || id.length > 80) return null;
   const result = await responses.doc(id).get();
-  return result.data?.[0] || null;
+  const document = result.data?.[0] || null;
+  return document?.data?.id ? document.data : document;
 }
 
 async function chooseCondition(pilot, forcedCondition) {
@@ -70,7 +71,7 @@ async function createSession(req, res) {
     invalid_reason: null,
     answers: {},
   };
-  await responses.doc(id).set({ data: record });
+  await responses.doc(id).set(record);
   return send(res, 200, record);
 }
 
@@ -98,7 +99,7 @@ async function saveResponse(req, res) {
     manipulation_passed: answers.q35 == null ? null : answers.q35 === expected ? 1 : 0,
     invalid_reason: invalidReason,
   };
-  await responses.doc(body.id).update({ data: update });
+  await responses.doc(body.id).update(update);
   return send(res, 200, { ok: true, completedAt });
 }
 
