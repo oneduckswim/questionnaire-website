@@ -117,4 +117,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(9000, "0.0.0.0");
+server.listen(process.env.PORT || 9000, "0.0.0.0");
