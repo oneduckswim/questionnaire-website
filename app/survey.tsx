@@ -70,6 +70,7 @@ export default function Survey() {
   const [loading,setLoading]=useState(true);
   const [loadAttempt,setLoadAttempt]=useState(0);
   const [language,setLanguage]=useState<Language>("en");
+  const [terminationReason,setTerminationReason]=useState<"underage"|"attention"|null>(null);
   activeLanguage=language;
 
   useEffect(()=>{
@@ -98,7 +99,18 @@ export default function Survey() {
 
   const changeLanguage=(next:Language)=>{setLanguage(next);localStorage.setItem("questionnaire_language",next);document.documentElement.lang=next==="zh"?"zh-CN":"en"};
 
-  const setAnswer=(k:string,v:string)=>{const next={...answers,[k]:v};setAnswers(next);localStorage.setItem("questionnaire_answers",JSON.stringify(next))};
+  const terminate=async(reason:"underage"|"attention",nextAnswers:Answers)=>{
+    setTerminationReason(reason);
+    localStorage.setItem("questionnaire_answers",JSON.stringify(nextAnswers));
+    if(session)await fetch("/api/response",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({id:session.id,answers:{...nextAnswers,_invalid_reason:reason},completed:true,startedAt:session.started_at})}).catch(()=>null);
+  };
+  const setAnswer=(k:string,v:string)=>{
+    const next={...answers,[k]:v};
+    setAnswers(next);
+    localStorage.setItem("questionnaire_answers",JSON.stringify(next));
+    if(k==="q1"&&v==="under18")void terminate("underage",next);
+    if(k==="q34"&&v!=="4")void terminate("attention",next);
+  };
   const required=useMemo(()=>{
     if(page===0)return["consent"]; if(page===1)return["q1","q2","q3"]; if(page===2)return["q4","q5"];
     if(page===3)return Array.from({length:28},(_,i)=>`q${i+6}`); if(page===4)return["q34","q35"];
@@ -111,15 +123,16 @@ export default function Survey() {
 
   const languageSwitch=<div className="language-switch" role="group" aria-label="Language / 语言"><button className={language==="zh"?"active":""} onClick={()=>changeLanguage("zh")}>中文</button><button className={language==="en"?"active":""} onClick={()=>changeLanguage("en")}>English</button></div>;
   if(loading)return <main className="shell">{languageSwitch}<section className="card">{tr("Preparing your questionnaire…",language)}</section></main>;
-  if(complete)return <main className="shell">{languageSwitch}<section className="card thanks"><div className="check">✓</div><h1>{tr("Thank you",language)}</h1><p>{tr(answers.consent==="disagree"||answers.q1==="under18"?"You have exited the survey. No further action is required.":"Your response has been recorded successfully.",language)}</p></section></main>;
+  if(complete)return <main className="shell">{languageSwitch}<section className="card thanks"><div className="check">✓</div><h1>{tr("Thank you",language)}</h1><p>{terminationReason?tr(terminationReason==="underage"?"This study is limited to participants aged 18 or above. Your response has been ended and will not be included in the analysis.":"The attention-check answer was incorrect. This response has been ended and marked as invalid.",language):tr(answers.consent==="disagree"?"You have exited the survey. No further action is required.":"Your response has been recorded successfully.",language)}</p></section></main>;
   if(!session)return <main className="shell">{languageSwitch}<section className="card"><h1>{tr("Unable to load the questionnaire",language)}</h1><p>{tr(error,language)}</p><button className="primary" onClick={()=>setLoadAttempt(x=>x+1)}>{tr("Try again",language)}</button></section></main>;
   const laptop=session.product==="laptop"; let q=6;
   const productHeading=tr(laptop?"Laptop Purchase":"Beverage Purchase",language);
   const scenario=tr(laptop?"Please imagine that you are thinking about buying a new laptop. It will be used mainly for study, office work, browsing the web, video meetings, and daily entertainment. Since a laptop is used for a long period of time and is not cheap, you would want to check the product information carefully.":"Please imagine that you are browsing beverages on an e-commerce or food-delivery platform, planning to buy a few bottles for daily use, or to pick up on the way to a gathering or an outing. The price is low and you would not spend long comparing options, but the packaging, brand, and overall impression may still shape your choice.",language);
   const productDescription=tr(laptop?"The Yoga Slim series focuses on a lightweight body, portable design, and strong performance, making it well suited for users who often need to work, study, or create content on the move. The product highlights a high-quality display, long battery life, stable performance, and a smart user experience, covering a wide range of use cases including everyday office tasks, online courses, video meetings, and multimedia entertainment.":"This Wanglaoji beverage features a Chinese-style themed package. The visual design incorporates traditional Chinese cultural elements such as mountains and rivers, the bright moon, flying geese, and green pines. While keeping the brand's iconic red visual identity, the packaging is given a stronger cultural feel and a sense of freshness.",language);
   const productSummary=tr(laptop?"The overall design style is clean and minimalist, positioning the laptop as a lightweight, high-performance option for consumers who want to balance appearance, performance, and portability.":"It suits everyday drinking, group meals, and on-the-go occasions, and also works as a beverage choice for festival or Chinese-themed events.",language);
+  const terminationModal=terminationReason?<div className="modal-backdrop" role="presentation"><section className="termination-modal" role="alertdialog" aria-modal="true" aria-labelledby="termination-title"><div className="modal-icon">!</div><h2 id="termination-title">{tr(terminationReason==="underage"?"You are not eligible to participate":"This response is invalid",language)}</h2><p>{tr(terminationReason==="underage"?"This study is limited to participants aged 18 or above. Your response has been ended and will not be included in the analysis.":"The attention-check answer was incorrect. This response has been ended and marked as invalid.",language)}</p><button className="primary" autoFocus onClick={()=>{localStorage.removeItem("questionnaire_answers");setComplete(true)}}>{tr("End questionnaire",language)}</button></section></div>:null;
 
-  return <main className="shell">{languageSwitch}<header className="masthead"><div><span className="eyebrow">{tr("Academic research questionnaire",language)}</span><h1>{tr("Consumer Response to Online Product Descriptions",language)}</h1></div>{session.pilot?<span className="pilot">{tr("Pilot mode",language)}</span>:null}</header>
+  return <main className="shell">{terminationModal}{languageSwitch}<header className="masthead"><div><span className="eyebrow">{tr("Academic research questionnaire",language)}</span><h1>{tr("Consumer Response to Online Product Descriptions",language)}</h1></div>{session.pilot?<span className="pilot">{tr("Pilot mode",language)}</span>:null}</header>
     <div className="progress"><div style={{width:`${((page+1)/7)*100}%`}}/><span>{language==="zh"?`第 ${page+1} 部分，共 7 部分`:`Section ${page+1} of 7`}</span></div>
     <section className="card"><p className="section-kicker">{tr(pageNames[page],language)}</p>
       {page===0&&<><h2>{tr("Participant Information and Consent",language)}</h2><p>{tr("Thank you for your interest in this study. Before you begin, please read the following information carefully.",language)}</p><p>{tr("This survey is part of an academic research project on consumer responses to online product descriptions. Your participation is entirely voluntary, and you may withdraw at any time without consequence.",language)}</p><p>{tr("All responses are anonymous and will be used solely for academic research. You must be at least 18 years old to participate.",language)}</p><Choice name="consent" value={answers.consent} setAnswer={setAnswer} options={[["agree","I confirm I am at least 18 years old and agree to participate."],["disagree","I do not agree to participate."]]}/></>}

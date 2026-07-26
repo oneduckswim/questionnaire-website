@@ -142,6 +142,11 @@ const zh: Record<string, string> = {
   "I am willing to look into this product further.": "我愿意进一步了解这款产品。",
   "Compared with similar products, I would put this one on my shortlist.": "与同类产品相比，我会把它列入备选清单。",
   "If the price is right, I might buy this product.": "如果价格合适，我可能会购买这款产品。",
+  "You are not eligible to participate": "您不符合参与条件",
+  "This study is limited to participants aged 18 or above. Your response has been ended and will not be included in the analysis.": "本研究仅面向年满18周岁的参与者。您的答题已结束，且不会纳入后续分析。",
+  "This response is invalid": "本答卷已作废",
+  "The attention-check answer was incorrect. This response has been ended and marked as invalid.": "注意力检查题回答错误。本次答题已结束，答卷已标记为无效。",
+  "End questionnaire": "结束问卷",
 };
 
 export function tr(text: string, language: Language): string {
