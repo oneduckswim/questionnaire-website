@@ -57,12 +57,17 @@ const worker = {
       const countMap = new Map(counts.results.map((row) => [row.condition, Number(row.count)]));
       const minimum = Math.min(...conditions.map((condition) => countMap.get(condition) ?? 0));
       const candidates = conditions.filter((condition) => (countMap.get(condition) ?? 0) === minimum);
-      const condition = body.pilot && body.forcedCondition && conditions.includes(body.forcedCondition)
-        ? body.forcedCondition
-        : candidates[Math.floor(Math.random() * candidates.length)];
+      const forcedPilot = Boolean(
+        body.pilot &&
+        body.forcedCondition &&
+        conditions.includes(body.forcedCondition)
+      );
+      const condition = forcedPilot
+        ? body.forcedCondition!
+        : candidates[crypto.getRandomValues(new Uint32Array(1))[0] % candidates.length];
       const id = crypto.randomUUID();
       const product = condition.startsWith("laptop") ? "laptop" : "beverage";
-      const aiDisclosure = condition.endsWith("_ai");
+      const aiDisclosure = condition === "laptop_ai" || condition === "beverage_ai";
       const startedAt = new Date().toISOString();
       await env.DB.prepare("INSERT INTO responses (id, condition, product, ai_disclosure, pilot, started_at) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(id, condition, product, aiDisclosure ? 1 : 0, body.pilot ? 1 : 0, startedAt).run();

@@ -21,12 +21,25 @@ export async function onRequest({ request }) {
     if (existing) return json(existing);
 
     let condition;
+    let allocationMethod;
     if (body.pilot && CONDITIONS.includes(body.forcedCondition)) {
       condition = body.forcedCondition;
+      allocationMethod = "forced-pilot";
     } else {
       const counterKey = `assignment:${body.pilot ? "pilot" : "main"}`;
       const current = Number(await questionnaire_kv.get(counterKey)) || 0;
-      condition = CONDITIONS[current % CONDITIONS.length];
+      const blockKey = `${counterKey}:block:${Math.floor(current / CONDITIONS.length)}`;
+      let block = JSON.parse(await questionnaire_kv.get(blockKey) || "null");
+      if (!Array.isArray(block) || block.length !== CONDITIONS.length) {
+        block = [...CONDITIONS];
+        for (let index = block.length - 1; index > 0; index -= 1) {
+          const swapIndex = crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1);
+          [block[index], block[swapIndex]] = [block[swapIndex], block[index]];
+        }
+        await questionnaire_kv.put(blockKey, JSON.stringify(block));
+      }
+      condition = block[current % CONDITIONS.length];
+      allocationMethod = "randomized-block-4";
       await questionnaire_kv.put(counterKey, String(current + 1));
     }
 
@@ -35,7 +48,8 @@ export async function onRequest({ request }) {
       id,
       condition,
       product: condition.startsWith("laptop") ? "laptop" : "beverage",
-      ai_disclosure: condition.endsWith("_ai") ? 1 : 0,
+      ai_disclosure: condition === "laptop_ai" || condition === "beverage_ai" ? 1 : 0,
+      allocation_method: allocationMethod,
       pilot: body.pilot ? 1 : 0,
       started_at: new Date().toISOString(),
       completed_at: null,
