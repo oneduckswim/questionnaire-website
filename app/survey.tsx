@@ -66,8 +66,11 @@ export default function Survey() {
   const [error,setError]=useState("");
   const [complete,setComplete]=useState(false);
   const [loading,setLoading]=useState(true);
+  const [loadAttempt,setLoadAttempt]=useState(0);
 
   useEffect(()=>{
+    const controller=new AbortController();
+    const timeout=window.setTimeout(()=>controller.abort(),10000);
     const params=new URLSearchParams(window.location.search);
     const pilot=params.get("mode")==="pilot";
     const forced=params.get("condition");
@@ -75,10 +78,15 @@ export default function Survey() {
     const saved=localStorage.getItem(storageKey);
     const cached=localStorage.getItem("questionnaire_answers");
     if(cached) setAnswers(JSON.parse(cached));
-    fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:saved,pilot,forcedCondition:forced})})
-      .then(r=>r.json()).then(data=>{const s={...data,ai_disclosure:Number(data.ai_disclosure),pilot:Number(data.pilot)};setSession(s);localStorage.setItem(storageKey,s.id);setLoading(false)})
-      .catch(()=>{setError("The survey could not be loaded. Please try again.");setLoading(false)});
-  },[]);
+    setLoading(true);
+    setError("");
+    fetch("/api/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:saved,pilot,forcedCondition:forced}),signal:controller.signal})
+      .then(async r=>{if(!r.ok)throw new Error(`Session request failed (${r.status})`);return r.json()})
+      .then(data=>{const s={...data,ai_disclosure:Number(data.ai_disclosure),pilot:Number(data.pilot)};setSession(s);localStorage.setItem(storageKey,s.id)})
+      .catch(()=>setError("The questionnaire service could not be reached. Check your connection and try again."))
+      .finally(()=>{window.clearTimeout(timeout);setLoading(false)});
+    return()=>{window.clearTimeout(timeout);controller.abort()};
+  },[loadAttempt]);
 
   const setAnswer=(k:string,v:string)=>{const next={...answers,[k]:v};setAnswers(next);localStorage.setItem("questionnaire_answers",JSON.stringify(next))};
   const required=useMemo(()=>{
@@ -93,7 +101,7 @@ export default function Survey() {
 
   if(loading)return <main className="shell"><section className="card">Preparing your questionnaire…</section></main>;
   if(complete)return <main className="shell"><section className="card thanks"><div className="check">✓</div><h1>Thank you</h1><p>{answers.consent==="disagree"||answers.q1==="under18"?"You have exited the survey. No further action is required.":"Your response has been recorded successfully."}</p></section></main>;
-  if(!session)return <main className="shell"><section className="card">{error}</section></main>;
+  if(!session)return <main className="shell"><section className="card"><h1>Unable to load the questionnaire</h1><p>{error}</p><button className="primary" onClick={()=>setLoadAttempt(x=>x+1)}>Try again</button></section></main>;
   const laptop=session.product==="laptop"; let q=6;
 
   return <main className="shell"><header className="masthead"><div><span className="eyebrow">Academic research questionnaire</span><h1>Consumer Response to Online Product Descriptions</h1></div>{session.pilot?<span className="pilot">Pilot mode</span>:null}</header>
