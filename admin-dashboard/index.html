@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Questionnaire Insights · 管理后台</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="loginView" class="login-shell">
+    <section class="login-card">
+      <div class="brand-mark">QI</div>
+      <p class="eyebrow">RESEARCH OPERATIONS</p>
+      <h1>Questionnaire Insights</h1>
+      <p class="lede">问卷数据的安全可视化后台</p>
+      <form id="loginForm">
+        <label for="password">管理员密码</label>
+        <input id="password" type="password" autocomplete="current-password" required placeholder="输入管理员密码">
+        <button type="submit">登录后台</button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+      <p class="security-note">数据仅在登录后加载，本页不会保存管理员密码。</p>
+    </section>
+  </main>
+
+  <main id="dashboardView" class="dashboard hidden">
+    <aside class="sidebar">
+      <div class="logo-row"><span class="brand-mark small">QI</span><strong>Questionnaire<br>Insights</strong></div>
+      <nav>
+        <button class="nav-item active" data-view="overview">总览</button>
+        <button class="nav-item" data-view="questions">逐题分析</button>
+        <button class="nav-item" data-view="crosstab">身份交叉</button>
+        <button class="nav-item" data-view="quality">数据质量</button>
+      </nav>
+      <button id="logoutButton" class="logout">退出登录</button>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <div><p class="eyebrow">2 × 2 EXPERIMENT</p><h1 id="viewTitle">研究数据总览</h1></div>
+        <div class="top-actions">
+          <button id="refreshButton" class="ghost">刷新数据</button>
+          <button id="exportButton">导出当前数据</button>
+        </div>
+      </header>
+
+      <section class="filters">
+        <label>样本状态<select id="statusFilter"><option value="all">全部状态</option><option value="completed">仅完成</option><option value="invalid">仅作废</option><option value="in_progress">进行中</option></select></label>
+        <label>实验条件<select id="conditionFilter"><option value="all">全部条件</option></select></label>
+        <label>数据类型<select id="pilotFilter"><option value="main">正式数据</option><option value="pilot">预测试</option><option value="all">全部</option></select></label>
+        <span id="updatedAt" class="updated"></span>
+      </section>
+
+      <div id="content"></div>
+    </section>
+  </main>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
