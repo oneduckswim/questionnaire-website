@@ -75,9 +75,10 @@ export default function Survey() {
   useEffect(()=>{
     const controller=new AbortController();
     const timeout=window.setTimeout(()=>controller.abort(),10000);
-    const pilot=false;
-    const forced=null;
-    const storageKey="questionnaire_formal_response_id_v1";
+    const params=new URLSearchParams(window.location.search);
+    const pilot=params.get("mode")==="preview";
+    const forced=pilot?params.get("condition"):null;
+    const storageKey=pilot&&forced?`questionnaire_preview_response_id_${forced}`:"questionnaire_formal_response_id_v1";
     const saved=localStorage.getItem(storageKey);
     const cached=localStorage.getItem("questionnaire_answers");
     const savedLanguage=localStorage.getItem("questionnaire_language");
